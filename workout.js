@@ -20,6 +20,7 @@ var app = express();
 var  uIdentity;
 var runTarget, unitTarget, pullupsTarget, pushupsTarget, dateTarget;
 var ran, unit, pullups, pushups, date;
+var response;
 
 //write the middleware...
 app.use(bodyParser.json());
@@ -29,7 +30,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.post('/webhook', webhook);
 
 // the webhook...
-var webhook = function(req, res, next) {
+function webhook(req, res, next) {
 
     var action = req.body.result.action;
     uIdentity = req.body.result.parameters.uIdentity;
@@ -38,14 +39,14 @@ var webhook = function(req, res, next) {
     if (action == 'record')             record(req, res);
     else if (action == 'show_status')   show_status(req, res);
     else if (action == 'set_target')   set_target(req, res);
-    else if (action == 'get_target')   get_target(req, res);
+    // else if (action == 'get_target')   get_target(req, res);
     // else
 
     next();
 };
 
 //the callback for connecting to mongoDB, will be called by any of the callbacks...
-var connect = function (operation, data) {
+function connect(operation, data, callback) {
     
     MongoClient.connect(url, function (err, db) {
         if (err){
@@ -61,44 +62,69 @@ var connect = function (operation, data) {
             // var user2 = {name: 'modulus user', age: 22, roles: ['user']};
             // var user3 = {name: 'modulus super admin', age: 92, roles: ['super-admin', 'admin', 'moderator', 'user']};
 
+            //switch to perform mongoDB operations, according to request 'operation' field...
             switch (operation) {
+
+                //mongoDB logic for document insertion...
                 case 'insert' :
                     collection.insertOne(data, function (err, result) {
                         if (err) {
                             console.log('______insertion error______');
                             console.log(err);
+
+                            // return undefined
+                            //call the fulfillmentGen callback to prepare fulfillment and return response...
+                            if(typeof callback === 'function')  callback(err, operation, undefined, response);
                         } else {
-                            console.log('Inserted a document into "workour" collection.');
-//                            return result.length;
+                            console.log('Inserted a document into "workout" collection.');
+
+                            // return result.insertedId;
+                            //call the fulfillmentGen callback to prepare fulfillment and return response...
+                            if(typeof callback === 'function')  callback(undefined, operation, result, response);
                         }
                         db.close();
-
-                        return true;
                     });
+
+                //mongoDB logic for document retrieval...
                 case 'retrieve' :
-                    var cursor = collection.find({uIdentity : data.uIdentity});
+//                     var result = collection.findOne({uIdentity : data.uIdentity});
 //
-                    collection.find(data, function (err, result) {
+                    collection.findOne({uIdentity : data.uIdentity}, function (err, result) {
                         if (err) {
                             console.log('______retrieval error______');
                             console.log(err);
+
+                            // result = undefined;
+                            //call the fulfillmentGen callback to prepare fulfillment and return response...
+                            if(typeof callback === 'function')  callback(err, operation, undefined, response);
                         } else {
-                            console.log('Inserted %d documents into "users" collection. The documents inserted with "_id" are:', result.length, result);
+                            console.log('Retrieved document '+ result._id +' from "workout" collection.');
+
+                            // return result;
+                            //call the fulfillmentGen callback to prepare fulfillment and return response...
+                            if(typeof callback === 'function')  callback(undefined, operation, result, response);
                         }
                         db.close();
-
-                        return true;
                     });
+
+                //mongoDB logic for updating document...
                 case 'update' :
-                    collection.updateOne({uIdentity : data.uIdentity}, {$set: data}, function (err, numUpdated) {
-                        if (err){
-                            console.log('______retrieval error______');
-                            console.log(err);
-                        }else if(numUpdated){
-                            console.log("Updated successfullt %d documents...", numUpdated);
-                        }else{
-                            console.log('No documents found with "find" criteria...');
-                        }
+                    collection.findAndModify(
+                        {uIdentity : data.uIdentity},
+                        {$set: data},
+                        function (err, object) {
+                            if (err){
+                                console.log('______retrieval error______');
+                                console.log(err);
+
+                                //call the fulfillmentGen callback to prepare fulfillment and return response...
+                                if(typeof callback === 'function')  callback(err, operation, undefined, response);
+                            }else{
+                                console.log("Successfully updated document...");
+
+                                //call the fulfillmentGen callback to prepare fulfillment and return response...
+                                if(typeof callback === 'function')  callback(undefined, operation, object, response);
+                            }
                         db.close();
 
                         return true;
@@ -106,10 +132,34 @@ var connect = function (operation, data) {
             }
         }
     });
-};
+}
+
+//response generation callback...
+function fulfillmentGen(err, operation, result, response) {
+
+    //check if error is generated, or we have the response...
+    if(err == undefined){
+        //format error response...
+
+    }else{
+        //format fulfillment response according to the 'operation' field in the function scope (closure)...
+        switch (operation){
+            case 'insert':
+
+                break;
+            case 'retrieve':
+
+                break;
+            case 'update':
+
+                break;
+        }
+
+    }
+}
 
 // set workout target as provided by the user...
-var set_target = function(req, res, next) {
+function set_target(req, res, next) {
     runTarget = req.body.result.parameters.run;
     unitTarget = req.body.result.parameters.unit;
     pullupsTarget = req.body.result.parameters.pullups;
@@ -119,28 +169,55 @@ var set_target = function(req, res, next) {
     
     var target = {uIdentity: uIdentity, runTarget: runTarget, unitTarget: unitTarget, pullupsTarget: pullupsTarget, pushupsTarget: pushupsTarget, dateTarget: dateTarget};
 
-    // MongoClient.connect()
-    if(!connect('insert', target))  console.log('----------Error in either MongoDB connection, or operations----------');
-};
+    response =res;
+
+    //call connect() with appropriate arguements...
+    // var DBResult = connect('insert', target);
+    connect('insert', target, fulfillmentGen);
+
+    // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
+    // else                       console.log(DBResult + ' @set_target');
+}
 
 // get workout target as provided by the user...
-var get_target = function(req, res, next) {
+function show_status(req, res, next) {
     var target = {uIdentity: uIdentity};
 
-    if(!connect('retrieve', target))  console.log('----------Error in either MongoDB connection, or operations----------');
-};
+    response =res;
 
-var record = function (req, res) {
+    //call connect() with appropriate arguements...
+    // var DBResult = connect('retrieve', target);
+    connect('retrieve', target, fulfillmentGen);
+
+    // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
+    // else                       console.log(DBResult + ' @show_status');
+}
+
+function record(req, res) {
     ran = req.body.result.parameters.ran;
     unit = req.body.result.parameters.unit;
     pullups = req.body.result.parameters.pullups;
     pushups = req.body.result.parameters.pushups;
     date = req.body.result.parameters.date;
 
-    // if(ran == '')
+    var targetKeys=[];
+    if(ran !='')        targetKeys.push('ran');
+    if(unit !='')       targetKeys.push('unit');
+    if(pullups !='')    targetKeys.push('pullups');
+    if(pushups !='')    targetKeys.push('pushups');
 
+    var target={};
+    for(key in targetKeys){
+        var property = targetKeys[key];
+        target[property] = eval(property);
+    }
+
+    response =res;
+
+    //call connect() with appropriate arguements...
+    // var DBResult = connect('update', target);
+    connect('update', target, fulfillmentGen);
+
+    // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
+    // else                       console.log(DBResult + ' @record');
 }
-// catch 404 and forward to error handler
-var show_status = function(req, res, next) {
-
-};
