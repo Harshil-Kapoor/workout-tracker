@@ -46,7 +46,7 @@ function webhook(req, res, next) {
 };
 
 //the callback for connecting to mongoDB, will be called by any of the callbacks...
-function connect(operation, data, callback) {
+function connect(operation, data, callback, extraInfo) {
     
     MongoClient.connect(url, function (err, db) {
         if (err){
@@ -74,13 +74,13 @@ function connect(operation, data, callback) {
 
                             // return undefined
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
-                            if(typeof callback === 'function')  callback(err, operation, undefined, response);
+                            if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo);
                         } else {
                             console.log('Inserted a document into "workout" collection.');
 
                             // return result.insertedId;
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
-                            if(typeof callback === 'function')  callback(undefined, operation, result, response);
+                            if(typeof callback === 'function')  callback(undefined, operation, result, response, extraInfo);
                         }
                         db.close();
                     });
@@ -96,13 +96,15 @@ function connect(operation, data, callback) {
 
                             // result = undefined;
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
-                            if(typeof callback === 'function')  callback(err, operation, undefined, response);
+                            //or the recordUpdate callback...
+                            if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo);
                         } else {
                             console.log('Retrieved document '+ result._id +' from "workout" collection.');
 
                             // return result;
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
-                            if(typeof callback === 'function')  callback(undefined, operation, result, response);
+                            //or the recordUpdate callback...
+                            if(typeof callback === 'function')  callback(undefined, operation, result, response, extraInfo);
                         }
                         db.close();
                     });
@@ -118,12 +120,12 @@ function connect(operation, data, callback) {
                                 console.log(err);
 
                                 //call the fulfillmentGen callback to prepare fulfillment and return response...
-                                if(typeof callback === 'function')  callback(err, operation, undefined, response);
+                                if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo);
                             }else{
                                 console.log("Successfully updated document...");
 
                                 //call the fulfillmentGen callback to prepare fulfillment and return response...
-                                if(typeof callback === 'function')  callback(undefined, operation, object, response);
+                                if(typeof callback === 'function')  callback(undefined, operation, object, response, extraInfo);
                             }
                         db.close();
 
@@ -134,23 +136,127 @@ function connect(operation, data, callback) {
     });
 }
 
+// //targetCreator for creating json target...
+// function targetCreator(ran, unit, pushups, pullups) {
+//
+//     var targetKeys=[];
+//     if(ran !='')        targetKeys.push('ran');
+//     if(unit !='')       targetKeys.push('unit');
+//     if(pullups !='')    targetKeys.push('pullups');
+//     if(pushups !='')    targetKeys.push('pushups');
+//
+//     var target={};
+//     for(key in targetKeys){
+//         var property = targetKeys[key];
+//         target[property] = eval(property);
+//     }
+//     return target;
+// }
+
+//record update processing callback...
+function recordUpdate(err, operation, findRes, response, extraInfo) {
+
+    //check if the document is found...
+    if(err) fulfillmentGen(err, '', undefined, response, extraInfo);
+    else{
+
+        //logic for preparing data to update the document fields in mongoDB...
+        var reqRan, reqPullups, reqPushups;
+
+        reqRan = req.result.parameters.ran;
+        reqPullups = req.result.parameters.pullups;
+        reqPushups = req.result.parameters.pushups;
+
+        var foundRan = findRes.ran;
+        // var foundUnit = findRes.unit;
+        var foundPushups = findRes.pushups;
+        var foundPullups = findRes.pullups;
+
+        var ran, pullups, pushups;
+        ran = foundRan - reqRan;
+        pullups = foundPullups - reqPullups;
+        pushups = foundPushups - reqPushups;
+
+        var targetKeys=[];
+        if(reqRan !='')        targetKeys.push('ran');
+        if(reqPullups !='')    targetKeys.push('pullups');
+        if(reqPushups !='')    targetKeys.push('pushups');
+
+        var target={};
+        for(key in targetKeys){
+            var property = targetKeys[key];
+            target[property] = eval(property);
+        }
+
+        //finally, update the document, and pass the appropriate callback for preparing the response...
+        connect('update', target, fulfillmentGen, undefined);
+    }
+}
+
 //response generation callback...
-function fulfillmentGen(err, operation, result, response) {
+function fulfillmentGen(err, operation, result, response, extraInfo) {
 
     //check if error is generated, or we have the response...
-    if(err == undefined){
-        //format error response...
+    if(result == undefined){
 
+        //format error response...
+        var errResp = {
+            speech: "Sorry, I can't find the details, give it another try...",
+            displayText: "Sorry, I can't find the details, give it another try...",
+            source: "Workout Tracker Service @heroku"
+        };
+
+        //send the json formatted response to api.ai...
+        response.json(errResp);
     }else{
+
         //format fulfillment response according to the 'operation' field in the function scope (closure)...
         switch (operation){
             case 'insert':
 
+                var insResp = {
+                    speech: "Voila, now with the target set, we can concentrate on achieving it",
+                    displayText: "Voila, now with the target set, we can concentrate on achieving it",
+                    source: "Workout Tracker Service @heroku"
+                };
+
+                //send the json formatted response to api.ai...
+                response.json(insResp);
+
                 break;
             case 'retrieve':
 
+                var ranRes = result.ran;
+                var unitRes = result.unit;
+                var pushupsRes = result.pushups;
+                var pullupsRes = result.pullups;
+
+                //Here's what you're looking for :
+
+                var textRes = "Distance ran: " + ranRes + " " + unitRes + "\n" +
+                              "Push-ups : " + pushupsRes + "\n" +
+                              "Pull-ups : " + pullupsRes;
+
+                var findResp = {
+                    speech: textRes,
+                    displayText: textRes,
+                    source: "Workout Tracker Service @heroku"
+                };
+
+                //send the json formatted response to api.ai...
+                response.json(findResp);
+
                 break;
             case 'update':
+
+                var updateResp = {
+                    speech: "Sure, let me jot it down...",
+                    displayText: "Sure, let me jot it down...",
+                    source: "Workout Tracker Service @heroku"
+                };
+
+                //send the json formatted response to api.ai...
+                response.json(updateResp);
 
                 break;
         }
@@ -173,7 +279,7 @@ function set_target(req, res, next) {
 
     //call connect() with appropriate arguements...
     // var DBResult = connect('insert', target);
-    connect('insert', target, fulfillmentGen);
+    connect('insert', target, fulfillmentGen, undefined);
 
     // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
     // else                       console.log(DBResult + ' @set_target');
@@ -187,36 +293,41 @@ function show_status(req, res, next) {
 
     //call connect() with appropriate arguements...
     // var DBResult = connect('retrieve', target);
-    connect('retrieve', target, fulfillmentGen);
+    connect('retrieve', target, fulfillmentGen, undefined);
 
     // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
     // else                       console.log(DBResult + ' @show_status');
 }
 
 function record(req, res) {
-    ran = req.body.result.parameters.ran;
-    unit = req.body.result.parameters.unit;
-    pullups = req.body.result.parameters.pullups;
-    pushups = req.body.result.parameters.pushups;
-    date = req.body.result.parameters.date;
-
-    var targetKeys=[];
-    if(ran !='')        targetKeys.push('ran');
-    if(unit !='')       targetKeys.push('unit');
-    if(pullups !='')    targetKeys.push('pullups');
-    if(pushups !='')    targetKeys.push('pushups');
-
-    var target={};
-    for(key in targetKeys){
-        var property = targetKeys[key];
-        target[property] = eval(property);
-    }
+    // ran = req.body.result.parameters.ran;
+    // unit = req.body.result.parameters.unit;
+    // pullups = req.body.result.parameters.pullups;
+    // pushups = req.body.result.parameters.pushups;
+    // date = req.body.result.parameters.date;
+    //
+    // targetCreator(ran, unit, pushups, pullups);
+    //
+    // var targetKeys=[];
+    // if(ran !='')        targetKeys.push('ran');
+    // if(unit !='')       targetKeys.push('unit');
+    // if(pullups !='')    targetKeys.push('pullups');
+    // if(pushups !='')    targetKeys.push('pushups');
+    //
+    // var target={};
+    // for(key in targetKeys){
+    //     var property = targetKeys[key];
+    //     target[property] = eval(property);
+    // }
 
     response =res;
 
+
     //call connect() with appropriate arguements...
     // var DBResult = connect('update', target);
-    connect('update', target, fulfillmentGen);
+    var retTarget = {uIdentity: uIdentity};
+
+    connect('retrieve', retTarget, recordUpdate, target);
 
     // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
     // else                       console.log(DBResult + ' @record');
