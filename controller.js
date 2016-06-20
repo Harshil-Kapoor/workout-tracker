@@ -58,7 +58,7 @@ var flavorO, sizeO, deliveryO;
 
 
 //facebook sdk loading and initialization...
-window.fbAsyncInit = function() {
+fbAsyncInit = function() {
     FB.init({
         appId      : 1720941448159226,
         xfbml      : true,
