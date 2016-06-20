@@ -203,7 +203,9 @@ function fulfillmentGen(err, operation, result, response, extraInfo) {
         var errResp = {
             speech: "Sorry, I can't find the details, give it another try...",
             displayText: "Sorry, I can't find the details, give it another try...",
-            source: "Workout Tracker Service @heroku"
+            source: "Workout Tracker Service @heroku",
+
+            status: "not found"
         };
 
         //send the json formatted response to api.ai...
@@ -240,7 +242,9 @@ function fulfillmentGen(err, operation, result, response, extraInfo) {
                 var findResp = {
                     speech: textRes,
                     displayText: textRes,
-                    source: "Workout Tracker Service @heroku"
+                    source: "Workout Tracker Service @heroku",
+
+                    status: "found"
                 };
 
                 //send the json formatted response to api.ai...
