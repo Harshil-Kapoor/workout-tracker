@@ -5,6 +5,7 @@
     "start": "node controller"
   },
   "dependencies": {
-    "botkit": "latest"
+    "botkit": "latest",
+    "request": "latest"
   }
 }
