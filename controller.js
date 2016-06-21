@@ -2,6 +2,7 @@
  * Created by Harshil on 6/16/2016.
  */
 var Botkit = require('botkit');
+var request = require('request');
 
 var accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
 var verifyToken = process.env.FACEBOOK_VERIFY_TOKEN;
@@ -15,6 +16,8 @@ var controller = Botkit.facebookbot({
     access_token: accessToken,
     verify_token: verifyToken
 });
+
+var userID, userAccessToken;
 
 var flavor, size, delivery;
 var flavorO, sizeO, deliveryO;
@@ -57,36 +60,45 @@ var flavorO, sizeO, deliveryO;
 // };
 
 
+// //facebook sdk loading and initialization...
+// window.fbAsyncInit = function() {
+//     FB.init({
+//         appId      : 1720941448159226,
+//         xfbml      : true,
+//         version    : 'v2.6'
+//     });
+// };
+//
+// (function(d, s, id){
+//     var js, fjs = d.getElementsByTagName(s)[0];
+//     if (d.getElementById(id)) {return;}
+//     js = d.createElement(s); js.id = id;
+//     js.src = "//connect.facebook.net/en_US/sdk.js";
+//     fjs.parentNode.insertBefore(js, fjs);
+// }(document, 'script', 'facebook-jssdk'));
+
+
 //facebook sdk loading and initialization...
 fbAsyncInit = function() {
     FB.init({
         appId      : 1720941448159226,
+        status     : true,
         xfbml      : true,
         version    : 'v2.6'
     });
-};
+}();
 
-(function(d, s, id){
-    var js, fjs = d.getElementsByTagName(s)[0];
-    if (d.getElementById(id)) {return;}
-    js = d.createElement(s); js.id = id;
-    js.src = "//connect.facebook.net/en_US/sdk.js";
-    fjs.parentNode.insertBefore(js, fjs);
-}(document, 'script', 'facebook-jssdk'));
+FB.event.subscribe('auth.statusChange', function (response) {
 
-//callback to get user id from fb graph api...
-function getId() {
-    var uid, accessToken;
-    FB.getLoginStatus(function(response) {
-        if (response.status === 'connected') {
+    if (response.status === 'connected') {
 
-            // the user is logged in and has authenticated your
-            // app, and response.authResponse supplies
-            // the user's ID, a valid access token, a signed
-            // request, and the time the access token
-            // and signed request each expire
-            uid = response.authResponse.userID;
-            accessToken = response.authResponse.accessToken;
+        // the user is logged in and has authenticated your
+        // app, and response.authResponse supplies
+        // the user's ID, a valid access token, a signed
+        // request, and the time the access token
+        // and signed request each expire
+        userID = response.authResponse.userID;
+        userAccessToken = response.authResponse.accessToken;
 
         // } else if (response.status === 'not_authorized') {
         //
@@ -95,22 +107,28 @@ function getId() {
         //     uid = undefined;
         //     accessToken = undefined;
         //
-        } else {
+    } else {
 
-            // the user isn't logged in to Facebook.
-                uid = undefined;
-                accessToken = undefined;
+        // the user isn't logged in to Facebook.
+        userID = undefined;
+        userAccessToken = undefined;
 
-        }
+    }
+});
 
-        return uid;
-    });
-}
+// (function(d, s, id){
+//     var js, fjs = d.getElementsByTagName(s)[0];
+//     if (d.getElementById(id)) {return;}
+//     js = d.createElement(s); js.id = id;
+//     js.src = "//connect.facebook.net/en_US/sdk.js";
+//     fjs.parentNode.insertBefore(js, fjs);
+// }(document, 'script', 'facebook-jssdk'));
+
 
 //callback to get check if user has already set it's targets...
 function checkUser(response, convo) {
 
-    var uIdentity = getId();
+    var uIdentity = userID;
     var status;
 
     if (uIdentity == undefined) {
@@ -147,7 +165,9 @@ function checkUser(response, convo) {
             console.log("response.statusCode: " + response.statusCode);
             console.log("response.statusText: " + response.statusText);
         }
-    })
+    });
+
+    convo.next();
 }
 
 //bot code...
