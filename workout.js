@@ -16,6 +16,15 @@ var url = 'mongodb://Harshil:abcd1234@ds011024.mlab.com:11024/workout-tracker';
 //initialize the express app...
 var app = express();
 
+
+// var port = normalizePort( || '3000');
+app.set('port', process.env.PORT);
+
+var server = http.createServer(app);
+
+server.listen(port);
+
+
 //declare the commom variables...
 var  uIdentity;
 var runTarget, unitTarget, pullupsTarget, pushupsTarget, dateTarget;
@@ -27,18 +36,18 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 //define callback for /webhook endpoint...
-app.post('/webhook', webhook);
+app.post('/backWebhook', backWebhook);
 
 // the webhook...
-function webhook(req, res, next) {
+function backWebhook(req, res, next) {
 
     var action = req.body.result.action;
     uIdentity = req.body.result.parameters.uIdentity;
 
     //redirect to appropriate callbacks acc. to the request action...
-    if (action == 'record')             record(req, res);
-    else if (action == 'show_status')   show_status(req, res);
-    else if (action == 'set_target')   set_target(req, res);
+    if (action == 'record')             record(req, res, next);
+    else if (action == 'show_status')   show_status(req, res, next);
+    else if (action == 'set_target')   set_target(req, res, next);
     // else if (action == 'get_target')   get_target(req, res);
     // else
 
@@ -46,7 +55,7 @@ function webhook(req, res, next) {
 };
 
 //the callback for connecting to mongoDB, will be called by any of the callbacks...
-function connect(operation, data, callback, extraInfo) {
+function connect(operation, data, callback, extraInfo, next) {
     
     MongoClient.connect(url, function (err, db) {
         if (err){
@@ -74,13 +83,13 @@ function connect(operation, data, callback, extraInfo) {
 
                             // return undefined
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
-                            if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo);
+                            if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo, next);
                         } else {
                             console.log('Inserted a document into "workout" collection.');
 
                             // return result.insertedId;
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
-                            if(typeof callback === 'function')  callback(undefined, operation, result, response, extraInfo);
+                            if(typeof callback === 'function')  callback(undefined, operation, result, response, extraInfo, next);
                         }
                         db.close();
                     });
@@ -97,14 +106,14 @@ function connect(operation, data, callback, extraInfo) {
                             // result = undefined;
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
                             //or the recordUpdate callback...
-                            if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo);
+                            if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo, next);
                         } else {
                             console.log('Retrieved document '+ result._id +' from "workout" collection.');
 
                             // return result;
                             //call the fulfillmentGen callback to prepare fulfillment and return response...
                             //or the recordUpdate callback...
-                            if(typeof callback === 'function')  callback(undefined, operation, result, response, extraInfo);
+                            if(typeof callback === 'function')  callback(undefined, operation, result, response, extraInfo, next);
                         }
                         db.close();
                     });
@@ -120,20 +129,22 @@ function connect(operation, data, callback, extraInfo) {
                                 console.log(err);
 
                                 //call the fulfillmentGen callback to prepare fulfillment and return response...
-                                if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo);
+                                if(typeof callback === 'function')  callback(err, operation, undefined, response, extraInfo, next);
                             }else{
                                 console.log("Successfully updated document...");
 
                                 //call the fulfillmentGen callback to prepare fulfillment and return response...
-                                if(typeof callback === 'function')  callback(undefined, operation, object, response, extraInfo);
+                                if(typeof callback === 'function')  callback(undefined, operation, object, response, extraInfo, next);
                             }
                         db.close();
-
-                        return true;
+                        //
+                        // return true;
                     });
             }
         }
     });
+
+    next();
 }
 
 // //targetCreator for creating json target...
@@ -154,10 +165,10 @@ function connect(operation, data, callback, extraInfo) {
 // }
 
 //record update processing callback...
-function recordUpdate(err, operation, findRes, response, extraInfo) {
+function recordUpdate(err, operation, findRes, response, extraInfo, next) {
 
     //check if the document is found...
-    if(err) fulfillmentGen(err, '', undefined, response, extraInfo);
+    if(err) fulfillmentGen(err, '', undefined, response, extraInfo, next);
     else{
 
         //logic for preparing data to update the document fields in mongoDB...
@@ -189,12 +200,14 @@ function recordUpdate(err, operation, findRes, response, extraInfo) {
         }
 
         //finally, update the document, and pass the appropriate callback for preparing the response...
-        connect('update', target, fulfillmentGen, undefined);
+        connect('update', target, fulfillmentGen, undefined, next);
     }
+
+    next();
 }
 
 //response generation callback...
-function fulfillmentGen(err, operation, result, response, extraInfo) {
+function fulfillmentGen(err, operation, result, response, extraInfo, next) {
 
     //check if error is generated, or we have the response...
     if(result == undefined){
@@ -266,6 +279,8 @@ function fulfillmentGen(err, operation, result, response, extraInfo) {
         }
 
     }
+
+    next();
 }
 
 // set workout target as provided by the user...
@@ -283,10 +298,12 @@ function set_target(req, res, next) {
 
     //call connect() with appropriate arguements...
     // var DBResult = connect('insert', target);
-    connect('insert', target, fulfillmentGen, undefined);
+    connect('insert', target, fulfillmentGen, undefined, next);
 
     // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
     // else                       console.log(DBResult + ' @set_target');
+
+    next();
 }
 
 // get workout target as provided by the user...
@@ -297,13 +314,15 @@ function show_status(req, res, next) {
 
     //call connect() with appropriate arguements...
     // var DBResult = connect('retrieve', target);
-    connect('retrieve', target, fulfillmentGen, undefined);
+    connect('retrieve', target, fulfillmentGen, undefined, next);
 
     // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
     // else                       console.log(DBResult + ' @show_status');
+
+    next();
 }
 
-function record(req, res) {
+function record(req, res, next) {
     // ran = req.body.result.parameters.ran;
     // unit = req.body.result.parameters.unit;
     // pullups = req.body.result.parameters.pullups;
@@ -331,8 +350,10 @@ function record(req, res) {
     // var DBResult = connect('update', target);
     var retTarget = {uIdentity: uIdentity};
 
-    connect('retrieve', retTarget, recordUpdate, target);
+    connect('retrieve', retTarget, recordUpdate, target, next);
 
     // if(DBResult == undefined)  console.log('----------Error in either MongoDB connection, or operations----------');
     // else                       console.log(DBResult + ' @record');
+
+    next();
 }
