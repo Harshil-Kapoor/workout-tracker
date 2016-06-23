@@ -6,6 +6,7 @@
   },
   "dependencies": {
     "botkit": "latest",
+    "mongodb": "latest",
     "request": "latest"
   }
 }
