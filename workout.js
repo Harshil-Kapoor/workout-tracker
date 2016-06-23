@@ -37,7 +37,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 //define callback for /webhook endpoint...
-app.post('/backWebhook', backWebhook);
+app.post('/webhook', backWebhook);
 
 // the webhook...
 function backWebhook(req, res, next) {
