@@ -23,7 +23,7 @@ app.set('port', process.env.PORT);
 
 var server = http.createServer(app);
 
-server.listen(port);
+server.listen(app.get('port'));
 
 
 //declare the commom variables...
