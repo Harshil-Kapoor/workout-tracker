@@ -31,6 +31,7 @@ var  uIdentity;
 var runTarget, unitTarget, pullupsTarget, pushupsTarget, dateTarget;
 var ran, unit, pullups, pushups, date;
 var response;
+var reqRan, reqPullups, reqPushups;
 
 //write the middleware...
 app.use(bodyParser.json());
@@ -173,11 +174,11 @@ function recordUpdate(err, operation, findRes, response, extraInfo, next) {
     else{
 
         //logic for preparing data to update the document fields in mongoDB...
-        var reqRan, reqPullups, reqPushups;
-
-        reqRan = req.result.parameters.ran;
-        reqPullups = req.result.parameters.pullups;
-        reqPushups = req.result.parameters.pushups;
+        // var reqRan, reqPullups, reqPushups;
+        //
+        // reqRan = req.result.parameters.ran;
+        // reqPullups = req.result.parameters.pullups;
+        // reqPushups = req.result.parameters.pushups;
 
         var foundRan = findRes.ran;
         // var foundUnit = findRes.unit;
@@ -324,6 +325,13 @@ function show_status(req, res, next) {
 }
 
 function record(req, res, next) {
+
+
+    reqRan = req.result.parameters.ran;
+    reqPullups = req.result.parameters.pullups;
+    reqPushups = req.result.parameters.pushups;
+
+
     // ran = req.body.result.parameters.ran;
     // unit = req.body.result.parameters.unit;
     // pullups = req.body.result.parameters.pullups;
