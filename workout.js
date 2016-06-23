@@ -43,7 +43,7 @@ app.post('/webhook', backWebhook);
 // the webhook...
 function backWebhook(req, res, next) {
 
-    console.log(JSON.stringify(req.body).prettyPrinting);
+    console.log(JSON.stringify(req.body));
 
     var action = req.body.result.action;
     uIdentity = req.body.result.parameters.uIdentity;
@@ -329,9 +329,9 @@ function show_status(req, res, next) {
 function record(req, res, next) {
 
 
-    reqRan = req.result.parameters.ran;
-    reqPullups = req.result.parameters.pullups;
-    reqPushups = req.result.parameters.pushups;
+    reqRan = req.body.result.parameters.ran;
+    reqPullups = req.body.result.parameters.pullups;
+    reqPushups = req.body.result.parameters.pushups;
 
 
     // ran = req.body.result.parameters.ran;
