@@ -43,7 +43,7 @@ app.post('/webhook', backWebhook);
 // the webhook...
 function backWebhook(req, res, next) {
 
-    console.log(JSON.stringify(req.body));
+    console.log(JSON.stringify(req.body).prettyPrinting);
 
     var action = req.body.result.action;
     uIdentity = req.body.result.parameters.uIdentity;
