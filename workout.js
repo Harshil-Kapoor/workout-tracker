@@ -18,12 +18,12 @@ var url = 'mongodb://Harshil:abcd1234@ds011024.mlab.com:11024/workout-tracker';
 var app = express();
 
 
-// var port = normalizePort( || '3000');
-app.set('port', process.env.PORT);
+var port = process.env.PORT;
+app.set('port', port);
 
 var server = http.createServer(app);
 
-server.listen(process.env.PORT);
+server.listen(port);
 
 
 //declare the commom variables...
